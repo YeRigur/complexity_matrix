@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Complexity Calculator</title>
+<style>
+:root{
+  --bg:#f3f6fb;
+  --card:#ffffff;
+  --alt:#f8fafc;
+  --line:#d6dee8;
+  --text:#18212f;
+  --muted:#5d6b7c;
+  --accent:#2563eb;
+  --accent-soft:#dbeafe;
+  --low:#166534;
+  --low-bg:#dcfce7;
+  --med:#a16207;
+  --med-bg:#fef3c7;
+  --high:#b91c1c;
+  --high-bg:#fee2e2;
+  --pend:#475569;
+  --pend-bg:#e2e8f0;
+  --shadow:0 8px 24px rgba(15,23,42,.06);
+  --r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text);}
+
+.page{
+  height:100vh;
+  max-width:1440px;
+  margin:0 auto;
+  padding:12px 20px;
+  display:grid;
+  grid-template-columns:310px 1fr;
+  gap:10px;
+}
+
+/* ── Left panel ── */
+.left{display:flex;flex-direction:column;gap:10px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:14px 16px;}
+
+.controls{display:flex;flex-direction:column;gap:8px;}
+.control label{display:block;font-size:12px;font-weight:700;margin-bottom:3px;}
+.control select{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff;color:var(--text);}
+
+.results{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.res{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--alt);}
+.res .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px;}
+.res .val{font-size:24px;font-weight:800;line-height:1;}
+.res .val-text{font-size:20px;font-weight:800;line-height:1;}
+.res.low{background:var(--low-bg);} .res.low .val,.res.low .val-text{color:var(--low);}
+.res.med{background:var(--med-bg);} .res.med .val,.res.med .val-text{color:var(--med);}
+.res.high{background:var(--high-bg);} .res.high .val,.res.high .val-text{color:var(--high);}
+.res.pend{background:var(--pend-bg);} .res.pend .val,.res.pend .val-text{color:var(--pend);}
+
+.formula{margin-top:8px;padding:8px 10px;border-radius:8px;border:1px dashed var(--line);font-size:11.5px;color:var(--muted);line-height:1.35;}
+
+.mtx{width:100%;border-collapse:collapse;margin-top:4px;}
+.mtx th,.mtx td{border:1px solid var(--line);padding:7px 4px;text-align:center;font-size:12px;}
+.mtx th{background:#f1f5f9;font-size:11px;}
+.mtx td.on{outline:2px solid var(--accent);outline-offset:-2px;background:var(--accent-soft);}
+.mtx td.na{color:var(--muted);background:#f8fafc;}
+.legend{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;}
+.legend span{padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700;}
+.legend .l{background:var(--low-bg);color:var(--low);}
+.legend .m{background:var(--med-bg);color:var(--med);}
+.legend .h{background:var(--high-bg);color:var(--high);}
+
+/* ── Right panel ── */
+.right{display:flex;flex-direction:column;min-height:0;}
+
+.tabs{display:flex;gap:0;}
+.tab{
+  padding:8px 22px;font-size:13px;font-weight:700;cursor:pointer;
+  border:1px solid var(--line);border-bottom:none;
+  border-radius:var(--r) var(--r) 0 0;
+  background:var(--alt);color:var(--muted);
+  transition:background .15s,color .15s;
+}
+.tab.active{background:var(--card);color:var(--text);border-bottom:1px solid var(--card);margin-bottom:-1px;z-index:1;}
+.tab:hover:not(.active){background:#eef2f7;}
+
+.tab-body{
+  flex:1;min-height:0;
+  background:var(--card);border:1px solid var(--line);
+  border-radius:0 var(--r) var(--r) var(--r);
+  box-shadow:var(--shadow);padding:0;
+  overflow-y:auto;
+}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* Def rows */
+.def-row{
+  display:grid;
+  grid-template-columns:40px 1fr 1fr;
+  border-bottom:1px solid var(--line);
+}
+.def-row:last-child{border-bottom:none;}
+.def-row.header{
+  background:#f1f5f9;font-size:10px;font-weight:700;
+  text-transform:uppercase;color:var(--muted);
+  position:sticky;top:0;z-index:2;
+}
+.def-row.header>div{padding:6px 10px;}
+
+.def-lvl{
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:10px 4px;font-weight:800;font-size:16px;
+  background:var(--card);border-right:1px solid var(--line);
+}
+.def-desc{padding:10px 12px;font-size:12px;line-height:1.45;border-right:1px solid var(--line);}
+.def-desc b{font-weight:700;}
+.def-examples{padding:10px 12px;font-size:11px;line-height:1.4;color:var(--muted);}
+.def-examples ul{margin:0;padding-left:13px;}
+.def-examples li{margin:0 0 2px;}
+.def-examples b{color:var(--text);font-weight:600;}
+
+.ex-cols{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;}
+.ex-col-title{font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;margin-bottom:2px;letter-spacing:.03em;}
+
+@media(max-width:900px){
+  html,body{overflow:auto;}
+  .page{height:auto;grid-template-columns:1fr;}
+  .right{min-height:500px;}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ═══ LEFT ═══ -->
+  <div class="left">
+    <div class="card">
+      <div class="controls">
+        <div class="control">
+          <label>Volume</label>
+          <select id="vol">
+            <option value="1" selected>1 — One change</option>
+            <option value="2">2 — A few changes</option>
+            <option value="3">3 — Many changes</option>
+            <option value="other">Other — Doesn't match any level</option>
+          </select>
+        </div>
+        <div class="control">
+          <label>Difficulty</label>
+          <select id="diff">
+            <option value="1">1 — Simple and clear</option>
+            <option value="2" selected>2 — Moderate, some thinking needed</option>
+            <option value="3">3 — Complex, research needed</option>
+            <option value="other">Other — Doesn't match any level</option>
+          </select>
+        </div>
+      </div>
+      <div class="results">
+        <div class="res pend" id="resLevel"><div class="lbl">Level</div><div class="val" id="level">2</div></div>
+        <div class="res low" id="resBand"><div class="lbl">Complexity</div><div class="val-text" id="band">Low</div></div>
+      </div>
+      <div class="formula" id="formula"></div>
+    </div>
+
+    <div class="card">
+      <table class="mtx" id="matrix">
+        <tr><th>Vol\Diff</th><th>1</th><th>2</th><th>3</th><th>Other</th></tr>
+        <tr><th>1</th><td id="m1-1">1</td><td id="m1-2">2</td><td id="m1-3">3</td><td id="m1-other" class="na">?</td></tr>
+        <tr><th>2</th><td id="m2-1">2</td><td id="m2-2">4</td><td id="m2-3">5</td><td id="m2-other" class="na">?</td></tr>
+        <tr><th>3</th><td id="m3-1">3</td><td id="m3-2">5</td><td id="m3-3">6</td><td id="m3-other" class="na">?</td></tr>
+        <tr><th>Other</th><td id="mother-1" class="na">?</td><td id="mother-2" class="na">?</td><td id="mother-3" class="na">?</td><td id="mother-other" class="na">?</td></tr>
+      </table>
+      <div class="legend">
+        <span class="l">Low 1-2</span>
+        <span class="m">Medium 3-4</span>
+        <span class="h">High 5-6</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ RIGHT ═══ -->
+  <div class="right">
+    <div class="tabs">
+      <div class="tab active" onclick="showTab(this,'scope')">Volume</div>
+      <div class="tab" onclick="showTab(this,'difficulty')">Difficulty</div>
+    </div>
+    <div class="tab-body">
+
+      <!-- ── VOLUME ── -->
+      <div class="tab-content active" id="tab-scope">
+        <div class="def-row header"><div>Lvl</div><div>Definition</div><div>Typical Examples</div></div>
+
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--low);">1</div>
+          <div class="def-desc"><b>One change.</b> A single fix, update, or addition in one place.</div>
+          <div class="def-examples"><ul>
+            <li>Change one field on one content type</li>
+            <li>Fix one template</li>
+            <li>Update one config file</li>
+            <li>Adjust one component's styles</li>
+          </ul></div>
+        </div>
+
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--med);">2</div>
+          <div class="def-desc"><b>A few changes.</b> The same or similar work repeated in several spots.</div>
+          <div class="def-examples"><ul>
+            <li>Update the same field across several content types</li>
+            <li>Adjust styles on a few pages</li>
+            <li>Apply a config change to several multisite instances</li>
+            <li>Change a template and its preprocess function</li>
+          </ul></div>
+        </div>
+
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--high);">3</div>
+          <div class="def-desc"><b>Many changes.</b> Lots of individual changes across the codebase.</div>
+          <div class="def-examples"><ul>
+            <li>Apply a change across many sites</li>
+            <li>Update many content types, each with its own specifics</li>
+            <li>Rework templates across an entire theme</li>
+            <li>Touch many modules or components in one task</li>
+          </ul></div>
+        </div>
+
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--muted);font-size:10px;">Other</div>
+          <div class="def-desc"><b>Doesn't match 1–3.</b> Too small, too large, or hard to categorize.</div>
+          <div class="def-examples"><ul>
+            <li>One-character typo fix (too small to rate)</li>
+            <li>Platform-wide rebranding across all sites (too large to rate)</li>
+            <li>Ongoing support without clear deliverables</li>
+          </ul></div>
+        </div>
+      </div>
+
+      <!-- ── DIFFICULTY ── -->
+      <div class="tab-content" id="tab-difficulty">
+        <div class="def-row header"><div>Lvl</div><div>Definition</div><div>Typical Examples (FE | BE)</div></div>
+
+        <!-- D1 -->
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--low);">1</div>
+          <div class="def-desc">A small fix with low unknowns and a clear solution.</div>
+          <div class="def-examples">
+            <div class="ex-cols">
+              <div>
+                <div class="ex-col-title">Frontend</div>
+                <ul>
+                  <li>Update markup in an existing template (add class, swap element)</li>
+                  <li>Swap an icon, image, or static asset</li>
+                  <li>Fix a single responsive/adaptivity issue for one breakpoint or device</li>
+                  <li>Adjust existing component's text, colour, or visibility via config</li>
+                </ul>
+              </div>
+              <div>
+                <div class="ex-col-title">Backend</div>
+                <ul>
+                  <li>Fix a backend bug — correct a field value, condition, or config</li>
+                  <li>Install and configure a contrib module via admin UI</li>
+                  <li>Add or rename a field on a content type</li>
+                  <li>Adjust display mode, View filter, or pager settings</li>
+                  <li>Update validation rule or error message on an existing form</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- D2 -->
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--med);">2</div>
+          <div class="def-desc">A feature or change with some unknowns and a generally known approach, possibly involving non-trivial business logic.</div>
+          <div class="def-examples">
+            <div class="ex-cols">
+              <div>
+                <div class="ex-col-title">Frontend</div>
+                <ul>
+                  <li>Implement a UI component from Figma (responsive, cross-browser)</li>
+                  <li>Add interactivity to a component (accordion, tabs, modal)</li>
+                  <li>Consume a REST endpoint and render data with states</li>
+                  <li>Integrate a frontend library within one component scope</li>
+                </ul>
+              </div>
+              <div>
+                <div class="ex-col-title">Backend</div>
+                <ul>
+                  <li>Implement server-side logic for one feature (validation, data processing)</li>
+                  <li>Build a Drupal plugin or module for a single responsibility</li>
+                  <li>Create a new route + controller with a form</li>
+                  <li>Extend a contrib module (field widget, condition plugin)</li>
+                  <li>Fix a bug involving complex business logic</li>
+                  <li>Implement access control or permissions for one resource</li>
+                  <li>Set up an event subscriber or hook for a specific trigger</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- D3 -->
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--high);">3</div>
+          <div class="def-desc">A complex feature with high unknowns that requires investigation, design decisions, or involves complex business logic.</div>
+          <div class="def-examples">
+            <div class="ex-cols">
+              <div>
+                <div class="ex-col-title">Frontend</div>
+                <ul>
+                  <li>Build a reusable component library or design system</li>
+                  <li>Stateful UI with multiple data sources (filters + AJAX + pagination)</li>
+                  <li>Full CMS theming integration (template bindings, component architecture)</li>
+                  <li>Front-end performance optimisation (loading, rendering, assets)</li>
+                  <li>Integrate a 3rd-party frontend library with custom adapter layer</li>
+                  <li>Work with an unfamiliar technology or framework not previously used in the project</li>
+                </ul>
+              </div>
+              <div>
+                <div class="ex-col-title">Backend</div>
+                <ul>
+                  <li>Design and implement a REST API with contracts and error handling</li>
+                  <li>Integrate with an external service or internal platform</li>
+                  <li>Multi-service module (importer + processor + logger)</li>
+                  <li>Content migration (Drupal Migrate API with custom source/process plugins)</li>
+                  <li>Queue worker, cron job, or Batch API processing pipeline</li>
+                  <li>Implement robust business logic with multiple conditions and rules</li>
+                  <li>Investigate and untangle complex existing code or process</li>
+                  <li>Refactor module architecture (split monolith, extract services)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Other -->
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--muted);font-size:10px;">Other</div>
+          <div class="def-desc"><b>Doesn't match 1–3.</b> Too simple, too complex, or not development work.</div>
+          <div class="def-examples"><ul>
+            <li>Pure content entry or copywriting (simpler than 1)</li>
+            <li>Drupal core upgrade or major platform rearchitecture (harder than 3)</li>
+            <li>Research or PoC without a clear deliverable</li>
+          </ul></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+var M={"1-1":1,"1-2":2,"1-3":3,"2-1":2,"2-2":4,"2-3":5,"3-1":3,"3-2":5,"3-3":6};
+function $(id){return document.getElementById(id);}
+
+function showTab(el,name){
+  document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active");});
+  document.querySelectorAll(".tab-content").forEach(function(c){c.classList.remove("active");});
+  el.classList.add("active");
+  $("tab-"+name).classList.add("active");
+}
+
+function render(){
+  var v=$("vol").value,d=$("diff").value;
+  document.querySelectorAll("#matrix td").forEach(function(c){c.classList.remove("on");});
+
+  if(v==="other"||d==="other"){
+    var cellId="m"+v+"-"+d;
+    var cell=$(cellId);
+    if(cell)cell.classList.add("on");
+    $("level").textContent="—";
+    $("band").textContent="Pending";
+    $("resLevel").className="res pend";
+    $("resBand").className="res pend";
+    $("formula").textContent="Doesn't fit standard levels — discuss with lead.";
+    return;
+  }
+
+  var cell=$("m"+v+"-"+d);
+  if(cell)cell.classList.add("on");
+  var lvl=M[v+"-"+d];
+  var band=lvl<=2?"low":lvl<=4?"med":"high";
+  var label=lvl<=2?"Low":lvl<=4?"Medium":"High";
+  $("level").textContent=lvl;
+  $("band").textContent=label;
+  $("resLevel").className="res pend";
+  $("resBand").className="res "+band;
+  $("formula").textContent="Volume "+v+", Difficulty "+d+" → Level "+lvl+" · "+label;
+}
+
+["vol","diff"].forEach(function(id){$(id).addEventListener("change",render);});
+render();
+</script>
+</body>
+</html>
