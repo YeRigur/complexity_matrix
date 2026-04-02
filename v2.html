@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Complexity Matrix — D / V / U</title>
+<style>
+:root{
+  --bg:#f3f6fb;
+  --card:#ffffff;
+  --alt:#f8fafc;
+  --line:#d6dee8;
+  --text:#18212f;
+  --muted:#5d6b7c;
+  --accent:#2563eb;
+  --accent-soft:#dbeafe;
+  --low:#166534;  --low-bg:#dcfce7;
+  --med:#a16207;  --med-bg:#fef3c7;
+  --high:#b91c1c; --high-bg:#fee2e2;
+  --highest:#7c2d12; --highest-bg:#ffedd5;
+  --pend:#475569; --pend-bg:#e2e8f0;
+  --diff:#9333ea; --vol:#0d9488; --unk:#6b88b0;
+  --shadow:0 8px 24px rgba(15,23,42,.06);
+  --r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text);}
+
+.page{
+  height:100vh;max-width:1500px;margin:0 auto;padding:12px 20px;
+  display:grid;grid-template-columns:340px 1fr;gap:10px;
+}
+
+/* ── Left panel ── */
+.left{display:flex;flex-direction:column;gap:10px;overflow-y:auto;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:14px 16px;}
+
+.controls{display:flex;flex-direction:column;gap:8px;}
+.control label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-bottom:3px;}
+.control label .dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.control select{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff;color:var(--text);}
+
+.results{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.res{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--alt);}
+.res .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px;}
+.res .val{font-size:24px;font-weight:800;line-height:1;}
+.res .val-text{font-size:18px;font-weight:800;line-height:1;}
+.res.low{background:var(--low-bg);} .res.low .val,.res.low .val-text{color:var(--low);}
+.res.med{background:var(--med-bg);} .res.med .val,.res.med .val-text{color:var(--med);}
+.res.high{background:var(--high-bg);} .res.high .val,.res.high .val-text{color:var(--high);}
+.res.highest{background:var(--highest-bg);} .res.highest .val,.res.highest .val-text{color:var(--highest);}
+.res.pend{background:var(--pend-bg);} .res.pend .val,.res.pend .val-text{color:var(--pend);}
+
+.formula-box{margin-top:8px;padding:10px 12px;border-radius:8px;border:1px dashed var(--line);font-size:11.5px;color:var(--muted);line-height:1.5;}
+.formula-box .eq{font-weight:700;color:var(--text);font-size:12px;}
+.formula-box .breakdown{margin-top:4px;}
+.formula-box .tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;margin-right:2px;}
+.formula-box .tag-d{background:#f3e8ff;color:var(--diff);}
+.formula-box .tag-v{background:#ccfbf1;color:var(--vol);}
+.formula-box .tag-u{background:#dbeafe;color:var(--unk);}
+
+.score-bar{margin-top:10px;}
+.score-bar-label{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.score-bar-track{display:flex;height:22px;border-radius:6px;overflow:hidden;border:1px solid var(--line);}
+.score-bar-seg{display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;transition:opacity .2s;}
+.score-bar-seg.dim{opacity:.25;}
+.seg-low{background:var(--low);flex:2;}
+.seg-med{background:var(--med);flex:2;}
+.seg-high{background:var(--high);flex:2;}
+.seg-highest{background:var(--highest);flex:1;}
+
+.legend{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;}
+.legend span{padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700;}
+.legend .l{background:var(--low-bg);color:var(--low);}
+.legend .m{background:var(--med-bg);color:var(--med);}
+.legend .h{background:var(--high-bg);color:var(--high);}
+.legend .hh{background:var(--highest-bg);color:var(--highest);}
+
+.note{margin-top:8px;padding:8px 10px;border-radius:8px;background:#fffbeb;border:1px solid #fde68a;font-size:11px;line-height:1.4;color:#92400e;}
+.note b{font-weight:700;}
+.note.exception{background:#fee2e2;border-color:#fca5a5;color:#991b1b;}
+
+/* ── Right panel ── */
+.right{display:flex;flex-direction:column;min-height:0;}
+
+.tabs{display:flex;gap:0;}
+.tab{
+  padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;
+  border:1px solid var(--line);border-bottom:none;
+  border-radius:var(--r) var(--r) 0 0;
+  background:var(--alt);color:var(--muted);
+  transition:background .15s,color .15s;
+}
+.tab.active{background:var(--card);color:var(--text);border-bottom:1px solid var(--card);margin-bottom:-1px;z-index:1;}
+.tab:hover:not(.active){background:#eef2f7;}
+.tab .tab-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;}
+
+.tab-body{
+  flex:1;min-height:0;
+  background:var(--card);border:1px solid var(--line);
+  border-radius:0 var(--r) var(--r) var(--r);
+  box-shadow:var(--shadow);padding:0;
+  overflow-y:auto;
+}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* Def rows */
+.def-row{display:grid;grid-template-columns:40px 1fr 1fr;border-bottom:1px solid var(--line);}
+.def-row:last-child{border-bottom:none;}
+.def-row.header{
+  background:#f1f5f9;font-size:10px;font-weight:700;
+  text-transform:uppercase;color:var(--muted);
+  position:sticky;top:0;z-index:2;
+}
+.def-row.header>div{padding:6px 10px;}
+.def-lvl{display:flex;align-items:flex-start;justify-content:center;padding:10px 4px;font-weight:800;font-size:16px;background:var(--card);border-right:1px solid var(--line);}
+.def-desc{padding:10px 12px;font-size:12px;line-height:1.45;border-right:1px solid var(--line);}
+.def-desc b{font-weight:700;}
+.def-desc .dim-note{display:block;margin-top:4px;font-size:10px;color:var(--muted);font-style:italic;}
+.def-examples{padding:10px 12px;font-size:11px;line-height:1.4;color:var(--muted);}
+.def-examples ul{margin:0;padding-left:13px;}
+.def-examples li{margin:0 0 2px;}
+.ex-cols{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;}
+.ex-col-title{font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;margin-bottom:2px;letter-spacing:.03em;}
+
+/* How-it-works tab */
+.how{padding:20px 24px;font-size:13px;line-height:1.6;color:var(--text);}
+.how h3{font-size:15px;margin:16px 0 8px;color:var(--text);}
+.how h3:first-child{margin-top:0;}
+.how p{margin:0 0 8px;}
+.how .dim-bar{display:flex;gap:0;border-radius:8px;overflow:hidden;margin:12px 0;}
+.how .dim-bar div{padding:10px 0;text-align:center;font-weight:700;font-size:13px;color:#fff;}
+.how .dim-d{background:var(--diff);flex:1;}
+.how .dim-v{background:var(--vol);flex:1;}
+.how .dim-u{background:var(--unk);flex:1;}
+.how .key-msg{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin:8px 0;font-size:12px;color:#92400e;}
+.how .key-msg b{font-weight:700;}
+.how .mapping{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;}
+.how .mapping .mp{padding:6px 14px;border-radius:8px;font-weight:700;font-size:12px;color:#fff;}
+.how .mp-l{background:var(--low);}
+.how .mp-m{background:var(--med);}
+.how .mp-h{background:var(--high);}
+.how .mp-hh{background:var(--highest);border:2px dashed #ea580c;}
+
+@media(max-width:960px){
+  html,body{overflow:auto;}
+  .page{height:auto;grid-template-columns:1fr;}
+  .right{min-height:500px;}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ═══ LEFT ═══ -->
+  <div class="left">
+    <div class="card">
+      <div class="controls">
+        <div class="control">
+          <label><span class="dot" style="background:var(--diff)"></span> Difficulty <span style="font-weight:400;color:var(--muted)">— how hard?</span></label>
+          <select id="diff">
+            <option value="1">1 — Simple and clear</option>
+            <option value="2" selected>2 — Moderate, some thinking needed</option>
+            <option value="3">3 — Complex, research needed</option>
+          </select>
+        </div>
+        <div class="control">
+          <label><span class="dot" style="background:var(--vol)"></span> Volume <span style="font-weight:400;color:var(--muted)">— how much?</span></label>
+          <select id="vol">
+            <option value="1" selected>1 — One change</option>
+            <option value="2">2 — A few changes</option>
+            <option value="3">3 — Many changes</option>
+          </select>
+        </div>
+        <div class="control">
+          <label><span class="dot" style="background:var(--unk)"></span> Unknown <span style="font-weight:400;color:var(--muted)">— how uncertain?</span></label>
+          <select id="unk">
+            <option value="1" selected>1 — Clear requirements, known area</option>
+            <option value="2">2 — Some gaps or unclear edge cases</option>
+            <option value="3">3 — Major unknowns, needs investigation</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="results">
+        <div class="res pend" id="resScore"><div class="lbl">Score</div><div class="val" id="score">4</div></div>
+        <div class="res low" id="resBand"><div class="lbl">Complexity</div><div class="val-text" id="band">Low</div></div>
+      </div>
+
+      <div class="formula-box">
+        <div class="eq" id="formulaEq">D(2) + V(1) + U(1) = 4</div>
+        <div class="breakdown" id="formulaBreakdown">
+          <span class="tag tag-d">Difficulty 2</span>
+          <span class="tag tag-v">Volume 1</span>
+          <span class="tag tag-u">Unknown 1</span>
+        </div>
+      </div>
+
+      <div class="score-bar">
+        <div class="score-bar-label">Score mapping</div>
+        <div class="score-bar-track">
+          <div class="score-bar-seg seg-low" id="seg-low">3–4 Low</div>
+          <div class="score-bar-seg seg-med" id="seg-med">5–6 Med</div>
+          <div class="score-bar-seg seg-high" id="seg-high">7–8 High</div>
+          <div class="score-bar-seg seg-highest" id="seg-highest">9 H+</div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span class="l">Low 3-4</span>
+        <span class="m">Medium 5-6</span>
+        <span class="h">High 7-8</span>
+        <span class="hh">H+ 9</span>
+      </div>
+
+      <div class="note" id="note" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- ═══ RIGHT ═══ -->
+  <div class="right">
+    <div class="tabs">
+      <div class="tab active" onclick="showTab(this,'difficulty')"><span class="tab-dot" style="background:var(--diff)"></span>Difficulty</div>
+      <div class="tab" onclick="showTab(this,'volume')"><span class="tab-dot" style="background:var(--vol)"></span>Volume</div>
+      <div class="tab" onclick="showTab(this,'unknown')"><span class="tab-dot" style="background:var(--unk)"></span>Unknown</div>
+      <div class="tab" onclick="showTab(this,'how')">How it works</div>
+    </div>
+    <div class="tab-body">
+
+      <!-- ── DIFFICULTY ── -->
+      <div class="tab-content active" id="tab-difficulty">
+        <div class="def-row header"><div>Lvl</div><div>Definition</div><div>Typical Examples (FE | BE)</div></div>
+
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--low);">1</div>
+          <div class="def-desc"><b>Small fix.</b> Low unknowns and a clear solution.
+            <span class="dim-note">Difficulty is not about how much work — it's about how hard the work is.</span>
+          </div>
+          <div class="def-examples">
+            <div class="ex-cols">
+              <div>
+                <div class="ex-col-title">Frontend</div>
+                <ul>
+                  <li>Update markup in an existing template (add class, swap element)</li>
+                  <li>Swap an icon, image, or static asset</li>
+                  <li>Fix a single responsive issue for one breakpoint</li>
+                  <li>Adjust component's text, colour, or visibility via config</li>
+                </ul>
+              </div>
+              <div>
+                <div class="ex-col-title">Backend</div>
+                <ul>
+                  <li>Fix a backend bug — correct a field value, condition, or config</li>
+                  <li>Install and configure a contrib module via admin UI</li>
+                  <li>Add or rename a field on a content type</li>
+                  <li>Adjust display mode, View filter, or pager settings</li>
+                  <li>Update validation rule or error message on an existing form</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--med);">2</div>
+          <div class="def-desc"><b>Feature or change.</b> Some unknowns with a generally known approach, possibly involving non-trivial business logic.</div>
+          <div class="def-examples">
+            <div class="ex-cols">
+              <div>
+                <div class="ex-col-title">Frontend</div>
+                <ul>
+                  <li>Implement a UI component from Figma (responsive, cross-browser)</li>
+                  <li>Add interactivity to a component (accordion, tabs, modal)</li>
+                  <li>Consume a REST endpoint and render data with states</li>
+                  <li>Integrate a frontend library within one component scope</li>
+                </ul>
+              </div>
+              <div>
+                <div class="ex-col-title">Backend</div>
+                <ul>
+                  <li>Implement server-side logic for one feature (validation, processing)</li>
+                  <li>Build a Drupal plugin or module for a single responsibility</li>
+                  <li>Create a new route + controller with a form</li>
+                  <li>Extend a contrib module (field widget, condition plugin)</li>
+                  <li>Fix a bug involving complex business logic</li>
+                  <li>Implement access control or permissions for one resource</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--high);">3</div>
+          <div class="def-desc"><b>Complex feature.</b> High unknowns that requires investigation, design decisions, or involves complex business logic.</div>
+          <div class="def-examples">
+            <div class="ex-cols">
+              <div>
+                <div class="ex-col-title">Frontend</div>
+                <ul>
+                  <li>Build a reusable component library or design system</li>
+                  <li>Stateful UI with multiple data sources (filters + AJAX + pagination)</li>
+                  <li>Full CMS theming integration (template bindings, architecture)</li>
+                  <li>Front-end performance optimisation (loading, rendering, assets)</li>
+                  <li>Integrate a 3rd-party library with custom adapter layer</li>
+                  <li>Work with unfamiliar technology not previously used in the project</li>
+                </ul>
+              </div>
+              <div>
+                <div class="ex-col-title">Backend</div>
+                <ul>
+                  <li>Design and implement a REST API with contracts and error handling</li>
+                  <li>Integrate with an external service or internal platform</li>
+                  <li>Multi-service module (importer + processor + logger)</li>
+                  <li>Content migration (Migrate API with custom source/process plugins)</li>
+                  <li>Queue worker, cron job, or Batch API processing pipeline</li>
+                  <li>Robust business logic with multiple conditions and rules</li>
+                  <li>Investigate and untangle complex existing code</li>
+                  <li>Refactor module architecture (split monolith, extract services)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── VOLUME ── -->
+      <div class="tab-content" id="tab-volume">
+        <div class="def-row header"><div>Lvl</div><div>Definition</div><div>Typical Examples</div></div>
+
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--low);">1</div>
+          <div class="def-desc"><b>One change.</b> A single fix, update, or addition in one place.
+            <span class="dim-note">Volume is not about difficulty. A large volume of simple work can still be lower difficulty than a small amount of very complex work.</span>
+          </div>
+          <div class="def-examples"><ul>
+            <li>Change one field on one content type</li>
+            <li>Fix one template</li>
+            <li>Update one config file</li>
+            <li>Adjust one component's styles</li>
+            <li>1 module, 1 page, 1 component</li>
+          </ul></div>
+        </div>
+
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--med);">2</div>
+          <div class="def-desc"><b>A few changes.</b> The same or similar work repeated in several spots.</div>
+          <div class="def-examples"><ul>
+            <li>Update the same field across several content types</li>
+            <li>Adjust styles on a few pages</li>
+            <li>Apply a config change to several multisite instances</li>
+            <li>Change a template and its preprocess function</li>
+            <li>A few modules, a few pages, 2–4 components</li>
+          </ul></div>
+        </div>
+
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--high);">3</div>
+          <div class="def-desc"><b>Many changes.</b> Lots of individual changes across the codebase, each may need individual attention.</div>
+          <div class="def-examples"><ul>
+            <li>Apply a change across many sites</li>
+            <li>Update many content types, each with its own specifics</li>
+            <li>Rework templates across an entire theme</li>
+            <li>Touch many modules or components in one task</li>
+            <li>Many modules, 5+ pages, full reusable set</li>
+          </ul></div>
+        </div>
+      </div>
+
+      <!-- ── UNKNOWN ── -->
+      <div class="tab-content" id="tab-unknown">
+        <div class="def-row header"><div>Lvl</div><div>Definition</div><div>Typical Examples</div></div>
+
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--low);">1</div>
+          <div class="def-desc"><b>Clear.</b> Requirements are complete, the area is well-known, no investigation needed.
+            <span class="dim-note">Unknown is often the strongest driver of estimation risk.</span>
+          </div>
+          <div class="def-examples"><ul>
+            <li>Acceptance criteria are fully defined</li>
+            <li>The codebase area is familiar to the team</li>
+            <li>No external dependencies or environment issues</li>
+            <li>Similar task was done before</li>
+          </ul></div>
+        </div>
+
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--med);">2</div>
+          <div class="def-desc"><b>Some gaps.</b> Parts of the requirements are unclear, or edge cases need clarification. May need to read unfamiliar code.</div>
+          <div class="def-examples"><ul>
+            <li>Unclear edge cases in acceptance criteria</li>
+            <li>Unfamiliar part of the codebase — need to read and understand</li>
+            <li>Dependency on another team's work (timing uncertain)</li>
+            <li>Environment or config differences across instances</li>
+            <li>Behavior is inconsistent — needs debugging first</li>
+          </ul></div>
+        </div>
+
+        <div class="def-row">
+          <div class="def-lvl" style="color:var(--high);">3</div>
+          <div class="def-desc"><b>Major unknowns.</b> Significant investigation needed before implementation can start. Root cause may be unclear, or the area is undocumented.</div>
+          <div class="def-examples"><ul>
+            <li>Root cause is unknown — requires deep debugging</li>
+            <li>Legacy logic is undocumented and fragile</li>
+            <li>Requirements are incomplete — need stakeholder clarification</li>
+            <li>Unstable environment blocks predictable testing</li>
+            <li>Dependency uncertainty — external system behavior is unclear</li>
+            <li>Expected behavior is not defined — multiple valid interpretations</li>
+          </ul></div>
+        </div>
+      </div>
+
+      <!-- ── HOW IT WORKS ── -->
+      <div class="tab-content" id="tab-how">
+        <div class="how">
+          <h3>Three dimensions of complexity</h3>
+          <p>The model separates three different sources of effort variation:</p>
+          <div class="dim-bar">
+            <div class="dim-d">Difficulty = how hard?</div>
+            <div class="dim-v">Volume = how much?</div>
+            <div class="dim-u">Unknown = how uncertain?</div>
+          </div>
+          <p>This makes the model more transparent than using one vague concept of "complexity."</p>
+
+          <h3>Scoring formula</h3>
+          <p>Each dimension is scored <b>1 (Low)</b>, <b>2 (Medium)</b>, or <b>3 (High)</b>.</p>
+          <p><b>Complexity Score = Difficulty + Volume + Unknown</b></p>
+          <p>Score range: 3 (simplest) → 9 (most complex).</p>
+
+          <h3>Mapping to complexity bands</h3>
+          <div class="mapping">
+            <span class="mp mp-l">3–4 = Low</span>
+            <span class="mp mp-m">5–6 = Medium</span>
+            <span class="mp mp-h">7–8 = High</span>
+            <span class="mp mp-hh">9 = Highest (H+)</span>
+          </div>
+
+          <div class="key-msg"><b>H+ (Highest)</b> should be treated as exception-grade: closely governed, sometimes has different cost, time-based handling via estimation and planning.</div>
+
+          <h3>Key principles</h3>
+          <div class="key-msg"><b>Difficulty ≠ Volume.</b> A large volume of simple work can still be lower difficulty than a small amount of very complex work.</div>
+          <div class="key-msg"><b>Unknown ≠ Difficulty.</b> A task can be technically simple but full of unknowns (unclear requirements, unstable environment).</div>
+          <div class="key-msg"><b>If complexity cannot be assessed with confidence</b> because the request is too unstable or too unclear, it should not be forced into the model. Mark it as exception → time-based estimation → separate governance.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+function $(id){return document.getElementById(id);}
+
+function showTab(el,name){
+  document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active");});
+  document.querySelectorAll(".tab-content").forEach(function(c){c.classList.remove("active");});
+  el.classList.add("active");
+  $("tab-"+name).classList.add("active");
+}
+
+function render(){
+  var d=+$("diff").value, v=+$("vol").value, u=+$("unk").value;
+  var score=d+v+u;
+
+  var bandKey,bandLabel;
+  if(score<=4){bandKey="low";bandLabel="Low";}
+  else if(score<=6){bandKey="med";bandLabel="Medium";}
+  else if(score<=8){bandKey="high";bandLabel="High";}
+  else{bandKey="highest";bandLabel="Highest (H+)";}
+
+  $("score").textContent=score;
+  $("band").textContent=bandLabel;
+  $("resScore").className="res pend";
+  $("resBand").className="res "+bandKey;
+
+  $("formulaEq").textContent="D("+d+") + V("+v+") + U("+u+") = "+score;
+  $("formulaBreakdown").innerHTML=
+    '<span class="tag tag-d">Difficulty '+d+'</span>'+
+    '<span class="tag tag-v">Volume '+v+'</span>'+
+    '<span class="tag tag-u">Unknown '+u+'</span>';
+
+  // Score bar highlight
+  ["low","med","high","highest"].forEach(function(s){
+    $("seg-"+s).classList.remove("dim");
+  });
+  ["low","med","high","highest"].forEach(function(s){
+    if(s!==bandKey) $("seg-"+s).classList.add("dim");
+  });
+
+  // Note for H+
+  var note=$("note");
+  if(score===9){
+    note.style.display="block";
+    note.className="note exception";
+    note.innerHTML="<b>⚠ Highest (H+)</b> — This task is at the edge of the standard model. Consider: exception handling, time-based estimation, separate governance.";
+  } else if(u===3){
+    note.style.display="block";
+    note.className="note";
+    note.innerHTML="<b>⚡ High Unknown</b> — Major uncertainty detected. Consider investigation spike before committing to full estimation.";
+  } else {
+    note.style.display="none";
+  }
+}
+
+["diff","vol","unk"].forEach(function(id){$(id).addEventListener("change",render);});
+render();
+</script>
+</body>
+</html>
